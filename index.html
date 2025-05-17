@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rummikub Timer</title>
+    <style>
+        body {
+            background-color: black;
+            text-align: center;
+        }
+
+        .titleText {
+            color: white;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+            margin: auto;
+            row-gap: 10px;
+        }
+
+        .playerContainer {
+            display: flex;
+            flex-direction: column;
+            max-width: 100%;
+            row-gap: 10px;
+        }
+
+        .playerButton {
+            padding: 3px;
+        }
+
+        .playerName {
+            float: left;
+        }
+
+        .playerTime {
+            float: right;
+        }
+        
+        .controlContainer {
+            display: none;
+        }
+
+        .setupContainer {
+            display: flex;
+            flex-direction: column;
+            max-width: 100%;
+            row-gap: 10px;
+        }
+
+        .timerContainer {
+            display: none;
+            flex-direction: column;
+            max-width: 100%;
+            row-gap: 10px;
+        }
+
+        .popupContainer {
+            background-color: rgba(0, 0, 0, 0.3);
+            position: fixed;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+        }
+
+        .popupMenu {
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .nameMenu {
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Titles -->
+        <span class="titleText">Rummikub Timer</span>
+        <div class="timerContainer" id="timerContainer">
+            <span class="titleText" id="totalTime">Total Time: 0:00</span>
+            <span class="titleText" id="currentTime">Current Time: 0:00</span>
+        </div>
+       
+        <!-- Players -->
+        <div class="playerContainer" id="playerContainer">
+
+        </div>
+        <!-- Controls -->
+        <div class="controlContainer" id="controlContainer">
+            <button class="pauseButton" id="pauseButton" onclick="toggleTime()">Pause</button>
+            <button class="turnButton" onclick="nextTurn()">Next Turn</button>  
+            <button class="resetButton" onclick="toggleResetMenu()">Reset</button>  
+            <button class="nameButton" onclick="toggleNameMenu()">Set Names</button>        
+        </div>
+        <!-- Setup -->
+        <div class="setupContainer" id="setupContainer">
+            <span class="titleText">Number of Players</span>
+            <input type="number" id="playerCount" min="2" max="8" value="3">
+            <button onclick="setupGame()">Start</button>
+        </div>
+        <div class="popupContainer" id="popupContainer">
+            <div class="popupMenu" id="resetMenu">
+                <span>Are you sure you want to restart?</span>
+                <br>
+                <br>
+                <button onclick="resetGame()">Yes</button>
+                <button onclick="toggleResetMenu()">No</button>
+            </div>
+            <div class="popupMenu" id="nameMenu">
+                <span>Set the Player Names</span>
+                <br>
+                <br>
+            </div>
+        </div>
+    </div>
+    <script>
+        var playerCount = 3
+        var players = []
+        var totalTime = 0
+        var currentTime = 0
+        var isGameStarted = false
+        var currentPlayer = -1
+        var timer
+        var paused = false
+        var isResetOpen = false
+        var isNameOpen = false
+
+        function setupGame(){
+            document.getElementById('setupContainer').style.display = 'none'
+            document.getElementById('controlContainer').style.display = 'block'
+            document.getElementById('timerContainer').style.display = 'flex'
+            playerCount = document.getElementById('playerCount').value
+            // Create player objects
+                for (let i = 0; i < playerCount; i++) {
+                    players[i] = {'name': `Player ${i + 1}`, 'playerTime': 0};
+                    // Create Button
+                    playerButton = document.createElement('button')
+                    playerButton.className = 'playerButton'
+                    playerButton.setAttribute('onclick',`startGame(${i})`)
+                    // Create name span
+                    playerName = document.createElement('span')
+                    playerName.className = 'playerName'
+                    playerName.id = `player${i}Name`
+                    playerName.innerHTML = `Player ${i + 1}`
+                    // Create time span
+                    playerTime = document.createElement('span')
+                    playerTime.className = 'playerTime'
+                    playerTime.id = `player${i}Time`
+                    playerTime.innerHTML = `Total Time: 0:00`
+                    // Append and add to page
+                    playerButton.appendChild(playerName)
+                    playerButton.appendChild(playerTime)
+                    document.getElementById('playerContainer').appendChild(playerButton)
+                    // Name menu
+                    nameText = document.createElement('span')
+                    nameText.innerHTML = `Player ${i + 1} `
+                    nameInput = document.createElement('input')
+                    nameInput.type = 'text'
+                    nameInput.id = `name${i}Input`
+                    document.getElementById('nameMenu').appendChild(nameText)
+                    document.getElementById('nameMenu').appendChild(nameInput)
+                    document.getElementById('nameMenu').appendChild(document.createElement('br'))
+                    document.getElementById('nameMenu').appendChild(document.createElement('br'))
+                }
+                nameSubmitButton = document.createElement('button')
+                nameSubmitButton.innerHTML = 'Submit'
+                nameSubmitButton.setAttribute('onclick', 'changeNames()')
+                nameCancelButton = document.createElement('button')
+                nameCancelButton.innerHTML = 'Cancel'
+                nameCancelButton.setAttribute('onclick', 'toggleNameMenu()')
+                document.getElementById('nameMenu').appendChild(nameSubmitButton)
+                document.getElementById('nameMenu').appendChild(nameCancelButton)
+        }
+
+        function startGame(startPlayer){
+            if (!isGameStarted){
+                isGameStarted = true
+                currentPlayer = startPlayer
+                startTime()
+            }
+        }
+
+        function updateTotalTime(){
+            totalTime += 1
+            let minutes = Math.floor(totalTime / 60)
+            let seconds = totalTime - minutes * 60
+            if (seconds < 10){
+                seconds = "0" + seconds
+            }
+            document.getElementById("totalTime").innerHTML = `Total Time: ${minutes}:${seconds}`
+        }
+
+        function updateCurrentTime() {
+            let minutes = Math.floor(currentTime / 60)
+            let seconds = currentTime - minutes * 60
+            if (seconds < 10){
+                seconds = "0" + seconds
+            }
+            document.getElementById("currentTime").innerHTML = `Current Time: ${minutes}:${seconds}`
+        }
+
+        function startTime() {
+            var interval = 1000; // ms
+            var expected = Date.now() + interval;
+            timer = setTimeout(step, interval);
+            function step() {
+                var dt = Date.now() - expected; // the drift (positive for overshooting)
+
+                updateTotalTime()
+                updatePlayerTime()
+                currentTime++
+                updateCurrentTime()
+
+                expected += interval;
+                timer = setTimeout(step, Math.max(0, interval - dt)); // take into account drift
+            }
+        }
+
+        function stopTime() {
+            clearTimeout(timer)
+        }
+
+        function updatePlayerTime() {
+            players[currentPlayer]['playerTime'] += 1
+            let minutes = Math.floor(players[currentPlayer]['playerTime'] / 60)
+            let seconds = players[currentPlayer]['playerTime'] - minutes * 60
+            if (seconds < 10){
+                seconds = "0" + seconds
+            }
+            document.getElementById(`player${currentPlayer}Time`).innerHTML = `Total Time: ${minutes}:${seconds}`
+        }
+
+        function nextTurn(){
+            if (isGameStarted){
+                stopTime()
+                currentTime = 0
+                updateCurrentTime()
+                if (currentPlayer < playerCount - 1) {
+                    currentPlayer++
+                } else {
+                    currentPlayer = 0
+                }
+                startTime() 
+            }
+        }
+
+        function toggleTime() {
+            if (isGameStarted) {
+                pauseButton = document.getElementById('pauseButton')
+                if (paused) {
+                    startTime()
+                    paused = false
+                    pauseButton.innerHTML = 'Pause'
+                } else {
+                    stopTime()
+                    paused = true
+                    pauseButton.innerHTML = 'Unpause'
+                }    
+            }
+            
+        }
+
+        function toggleResetMenu() {
+            if (isResetOpen){
+                document.getElementById('popupContainer').style.display = 'none'
+                document.getElementById('resetMenu').style.display = 'none'
+                isResetOpen = false
+            } else {
+                document.getElementById('popupContainer').style.display = 'flex'
+                document.getElementById('resetMenu').style.display = 'block'
+                isResetOpen = true
+            }
+        }
+
+        function toggleNameMenu() {
+            if (isNameOpen){
+                document.getElementById('popupContainer').style.display = 'none'
+                document.getElementById('nameMenu').style.display = 'none'
+                isNameOpen = false
+            } else {
+                document.getElementById('popupContainer').style.display = 'flex'
+                document.getElementById('nameMenu').style.display = 'block'
+                isNameOpen = true
+            }
+        }
+
+        function changeNames() {
+            toggleNameMenu()
+            for (let i = 0; i < playerCount; i++) {
+                document.getElementById(`player${i}Name`).innerHTML = document.getElementById(`name${i}Input`).value
+            }
+        }
+
+        function resetGame() {
+            toggleResetMenu()
+            stopTime()
+            currentTime = 0
+            updateCurrentTime()
+            for (let i = 0; i < playerCount; i++) {
+                players[i]['playerTime'] = 0
+                document.getElementById(`player${i}Time`).innerHTML = `Total Time: 0:00`
+            }
+            totalTime = 0
+            document.getElementById("totalTime").innerHTML = `Total Time: 0:00`
+            currentPlayer = -1
+            paused = false
+            pauseButton = document.getElementById('pauseButton').innerHTML = 'Pause'
+            isGameStarted = false
+
+        }
+    </script>
+</body>
+</html>
